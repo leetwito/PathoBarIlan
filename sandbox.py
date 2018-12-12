@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[10]:
+# In[ ]:
 
 
 import scipy.io 
@@ -23,7 +23,7 @@ from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint
 
 # ## Params
 
-# In[2]:
+# In[ ]:
 
 
 normal_paths = glob('E:/Datasets/PathoBarIlan/Case8/Normal*.mat')
@@ -35,15 +35,19 @@ data_dir = 'E:/Datasets/PathoBarIlan/Case8'
 pos_name_init = 'Cancer'
 neg_name_init = 'Normal'
 
-use_rgb = True # True=rgb, False=spectral
-
+use_rgb = False # True=rgb, False=spectral
+if use_rgb:
+    file_ext = '.png'
+else:
+    file_ext = '.npy'
+    
 window_size = (200, 200)
 shift = (100, 100)
 
 
 # ## utils
 
-# In[3]:
+# In[ ]:
 
 
 def read_slide(path):
@@ -55,7 +59,7 @@ def read_slide(path):
     return spectral, rgb
 
 
-# In[4]:
+# In[ ]:
 
 
 def create_batch_of_crops_from_slide(img, window_size, shift, vis_flag=False):
@@ -78,7 +82,7 @@ def create_batch_of_crops_from_slide(img, window_size, shift, vis_flag=False):
     return crops
 
 
-# In[5]:
+# In[ ]:
 
 
 def visualize_batch_of_crops(crops, n_iter_y, n_iter_x):
@@ -92,7 +96,7 @@ def visualize_batch_of_crops(crops, n_iter_y, n_iter_x):
     plt.show()
 
 
-# In[6]:
+# In[ ]:
 
 
 def create_crops_from_fileslist(fileslist, window_size, shift):
@@ -132,7 +136,7 @@ def create_crops_from_fileslist(fileslist, window_size, shift):
 #     return out_sepc, out_rgb, out_labels
 
 
-# In[7]:
+# In[ ]:
 
 
 def create_crops_from_dir(dir_path, window_size, shift):
@@ -142,7 +146,7 @@ def create_crops_from_dir(dir_path, window_size, shift):
 #     return spectral_crops, rgb_crops, labels
 
 
-# In[35]:
+# In[ ]:
 
 
 def create_csv_for_folder(data_dir, ext):
@@ -170,16 +174,9 @@ img = rgb
 
 crops = create_batch_of_crops_from_slide(img, window_size=window_size, shift=shift, vis_flag=True)plt.imshow(img)
 # ## prepare data
-train_spectral, train_rgb, train_labels = create_crops_from_dir(data_dir+'/Train', window_size=window_size, shift=shift)test_spectral, test_rgb, test_labels = create_crops_from_dir(data_dir+'/Test', window_size=window_size, shift=shift)
-eval_spectral, eval_rgb, eval_labels = create_crops_from_dir(data_dir+'/Eval', window_size=window_size, shift=shift)create_crops_from_dir(data_dir, window_size=window_size, shift=shift)
-# In[37]:
-
-
-ext = 'png'
+create_crops_from_dir(data_dir, window_size=window_size, shift=shift)ext = 'png'
 split_data_dir = 'E:\Datasets\PathoBarIlan'
-create_csv_for_folder(split_data_dir+'/Train', ext)
-
-print('Data:')
+create_csv_for_folder(split_data_dir+'/Train', ext)print('Data:')
 train_pos = train_labels[:,1].sum()
 eval_pos = eval_labels[:,1].sum()
 test_pos = test_labels[:,1].sum()
@@ -212,10 +209,6 @@ val_X_rgb = np.stack(val_pos_rgb_crops + val_neg_rgb_crops)
 y_val = np.array(y_pos_val + y_neg_val)# print(len(y_train))
 # print(len(train_X_rgb))
 # ## build and train model
-
-# In[ ]:
-
-
 if use_rgb:
     x_train = train_rgb
     x_eval = eval_rgb
@@ -226,69 +219,139 @@ else:
     x_test = test_spectral
 y_train = train_labels
 y_eval = eval_labels
-y_test = test_labels
-
-
-# In[ ]:
-
-
-mobilenet_model = mobilenet.MobileNet(include_top=True, weights=None, input_shape=x_train[0].shape, classes=2, dropout=0.2)
-
-
-# In[ ]:
-
-
-mobilenet_model.summary()
-
-
-# In[ ]:
-
-
-optimizer = Adam(lr=1e-3)
+y_test = test_labelsmobilenet_model = mobilenet.MobileNet(include_top=True, weights=None, input_shape=x_train[0].shape, classes=2, dropout=0.2)mobilenet_model.summary()optimizer = Adam(lr=1e-3)
 mobilenet_model.compile(loss="binary_crossentropy", optimizer=optimizer)
 lrReduce = ReduceLROnPlateau(monitor='val_loss', factor=0.3, patience=4, verbose=1, min_lr=1e-6)
-chkpnt = ModelCheckpoint("my_models/model_spec", save_best_only=True)
+chkpnt = ModelCheckpoint("my_models/model_spec", save_best_only=True)print(x_train.shape, y_train.shape)
+print(x_eval.shape, y_eval.shape)mobilenet_model.fit(x=x_train, y=y_train, epochs=1000, validation_data=(x_eval, y_eval), batch_size=64, verbose=2, callbacks=[chkpnt, lrReduce], shuffle=True)y_pred = mobilenet_model.predict(test_rgb)y_pred = y_pred[:, 0]>y_pred[:, 1]y_test = y_test[:, 0]>y_test[:, 1](y_test.T[0] != y_pred).sum()
+# ############
+
+# In[ ]:
+
+
+folders = glob(data_dir+"/*/")
 
 
 # In[ ]:
 
 
-print(x_train.shape, y_train.shape)
-print(x_eval.shape, y_eval.shape)
+pos_folders = [i for i in folders if "Cancer" in i]
+neg_folders = [i for i in folders if "Normal" in i]
+
+pos_crops_files = []
+for folder in pos_folders:
+#     print(folder)
+    pos_crops_files.append(len(glob(folder+"*"+file_ext)))
+    
+neg_crops_files = []
+for folder in neg_folders:
+#     print(folder)
+    neg_crops_files.append(len(glob(folder+"*"+file_ext)))
 
 
 # In[ ]:
 
 
-mobilenet_model.fit(x=x_train, y=y_train, epochs=1000, validation_data=(x_eval, y_eval), batch_size=64, verbose=2, callbacks=[chkpnt, lrReduce], shuffle=True)
+pos_crops_files, neg_crops_files
 
 
 # In[ ]:
 
 
-y_pred = mobilenet_model.predict(test_rgb)
+tot_pos = np.sum(pos_crops_files)
+tot_neg = np.sum(neg_crops_files)
+
+tot_pos
+# In[ ]:
+
+
+eval_min_percentage = 0.1
 
 
 # In[ ]:
 
 
-y_pred = y_pred[:, 0]>y_pred[:, 1]
+eval_num_pos = int(eval_min_percentage*tot_pos)
+eval_num_neg = int(eval_min_percentage*tot_neg)
+
+print(eval_num_pos, eval_num_neg)
 
 
 # In[ ]:
 
 
-y_test = y_test[:, 0]>y_test[:, 1]
+pos_folders_rand = pd.DataFrame({"folder":pos_folders, "n_files":pos_crops_files}).sample(len(pos_folders), random_state=0).reset_index(drop=True)
+neg_folders_rand = pd.DataFrame({"folder":neg_folders, "n_files":neg_crops_files}).sample(len(neg_folders), random_state=0).reset_index(drop=True)
 
 
 # In[ ]:
 
 
-(y_test.T[0] != y_pred).sum()
+pos_folders_rand
 
 
 # In[ ]:
 
 
-len(y_test)
+
+eval_files_neg = []
+
+
+# In[ ]:
+
+
+def get_part_files(all_folders_df, frac):
+    tot_files = all_folders_df.n_files.sum()
+    min_num_files = int(frac*tot_files)
+    chosen_files_list= []
+    while len(chosen_files_list) < min_num_files:
+        folder = all_folders_df.iloc[0].folder
+        all_folders_df.drop(0, inplace=True)
+        all_folders_df.reset_index(inplace=True, drop=True)
+        chosen_files_list += glob(folder+"/*"+file_ext)
+    return chosen_files_list
+
+print(pos_folders_rand.shape)
+eval_files_pos = get_part_files(pos_folders_rand, 0.1)
+eval_files_neg = get_part_files(neg_folders_rand, 0.1)
+print(pos_folders_rand.shape)
+
+test_files_pos = get_part_files(pos_folders_rand, 0.1)
+test_files_neg = get_part_files(neg_folders_rand, 0.1)
+
+print(pos_folders_rand.shape)
+
+train_files_pos = get_part_files(pos_folders_rand, 1)
+train_files_neg = get_part_files(neg_folders_rand, 1)
+
+print(pos_folders_rand.shape)
+
+
+# In[ ]:
+
+
+len(eval_files_pos), len(eval_files_neg), len(test_files_pos), len(test_files_neg)
+
+
+# In[ ]:
+
+
+def get_df_pos_neg_files(list_neg, list_pos):
+    return pd.DataFrame({"filepath":list_neg+list_pos, "label":[False]*len(list_neg)+[True]*len(list_pos)})
+
+
+# In[ ]:
+
+
+df_eval = get_df_pos_neg_files(eval_files_neg, eval_files_pos)
+df_train = get_df_pos_neg_files(train_files_neg, train_files_pos)
+df_test = get_df_pos_neg_files(test_files_neg, test_files_pos)
+
+
+# In[ ]:
+
+
+df_train.to_csv(data_dir+'/train.csv', index=False)
+df_test.to_csv(data_dir+'/test.csv', index=False)
+df_eval.to_csv(data_dir+'/eval.csv', index=False)
 
