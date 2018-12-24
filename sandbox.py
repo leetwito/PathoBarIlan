@@ -1,6 +1,12 @@
 
 # coding: utf-8
 
+# In[1]:
+
+
+import tensorflow
+
+
 # In[ ]:
 
 
@@ -31,6 +37,8 @@ cancer_paths = glob('E:/Datasets/PathoBarIlan/Case8/Cancer*.mat')
 mixed_paths = glob('E:/Datasets/PathoBarIlan/Case8/Mixed*.mat')
 
 data_dir = 'E:/Datasets/PathoBarIlan/Case8'
+all_data_dir = 'E:/Datasets/PathoBarIlan/Shlomi2018/'
+
 
 pos_name_init = 'Cancer'
 neg_name_init = 'Normal'
@@ -154,17 +162,107 @@ def create_csv_for_folder(data_dir, ext):
         ext = ext[1:]
     data_df = pd.DataFrame(columns=['filename', 'label'])
     files = glob(os.path.join(data_dir,'*', '*.{}'.format(ext)))
+    files = [file for file in files if "Mixed" not in file]
 #     print(data_dir+'/*/*.{}'.format(ext))
     
     init_len = len(data_dir)
-    files = [file[init_len:] for file in files]
+    files = [file for file in files]
 #     print(files)
     labels = [1 if pos_name_init in file else 0 for file in files]
 #     print(labels)
     data_df['filename'] = files
     data_df['label'] = labels
-    data_df.to_csv(os.path.join(data_dir, os.path.basename(data_dir)+'.csv'), index=False)
-    print('Created CSV successfully for folder {}'.format(data_dir))
+#     data_df.to_csv(os.path.join(data_dir, os.path.basename(data_dir)+'.csv'), index=False)
+#     print('Created CSV successfully for folder {}'.format(data_dir))
+    
+    return data_df    
+
+
+# In[ ]:
+
+
+slides = glob(all_data_dir+"/*/")
+
+
+# In[ ]:
+
+
+from sklearn.model_selection import KFold
+from keras.preprocessing.image import ImageDataGenerator
+
+skf = KFold(n_splits=0, random_state=None, shuffle=True)
+
+train_slides_all = []
+test_slides_all = []
+val_slides_all = []
+
+for train_index, test_index in skf.split(np.arange(len(slides)).T, np.arange(len(slides)).T):
+    print("TRAIN:", train_index, "TEST:", test_index)
+    train_slides_all.append(train_index)
+    val_slides_all.append([test_index[0]])
+    test_slides_all.append([test_index[1]])
+
+
+# In[ ]:
+
+
+i = 3
+
+train_index = train_slides_all[i]
+val_index = val_slides_all[i]
+test_index = test_slides_all[i]
+
+train_index, val_index, test_index
+
+
+# In[ ]:
+
+
+def get_dfs_for_indices(slides, index_list):
+    dfs = []
+
+    for slide in np.array(slides)[index_list]:
+        data_dir = slide
+        dfs.append(create_csv_for_folder(data_dir, file_ext))
+    return pd.concat(dfs)
+
+
+# In[ ]:
+
+
+df_train = get_dfs_for_indices(slides, train_index)
+df_test = get_dfs_for_indices(slides, test_index)
+df_val = get_dfs_for_indices(slides, val_index)
+
+df_train.to_csv(os.path.join(all_data_dir, 'train_files.csv'), index=False)
+df_val.to_csv(os.path.join(all_data_dir, 'val_files.csv'), index=False)
+df_test.to_csv(os.path.join(all_data_dir, 'test_files.csv'), index=False)
+
+
+# In[ ]:
+
+
+val_index
+
+
+# In[ ]:
+
+
+all_data_dir
+
+
+# In[ ]:
+
+
+
+datagen=ImageDataGenerator(rescale=1./255)
+train_generator=datagen.flow_from_directory(dataframe=df_train, x_col="filename", y_col="label", has_ext=True, class_mode="categorical", batch_size=4)
+
+
+# In[ ]:
+
+
+keras.__version__
 
 
 # ## test and vis
@@ -172,11 +270,25 @@ path = mixed_paths[0]
 spectral, rgb = read_slide(path)
 img = rgb
 
-crops = create_batch_of_crops_from_slide(img, window_size=window_size, shift=shift, vis_flag=True)plt.imshow(img)
+crops = create_batch_of_crops_from_slide(img, window_size=window_size, shift=shift, vis_flag=True)#plt.imshow(img)
 # ## prepare data
-create_crops_from_dir(data_dir, window_size=window_size, shift=shift)ext = 'png'
+
+# In[ ]:
+
+
+create_crops_from_dir(data_dir, window_size=window_size, shift=shift)
+
+
+# In[ ]:
+
+
+dirs = glob('E:/Datasets/PathoBarIlan/Shlomi2018/*')
+for data_dir in dirs:
+    create_crops_from_dir(data_dir, window_size=window_size, shift=shift)
+
+ext = 'png'
 split_data_dir = 'E:\Datasets\PathoBarIlan'
-create_csv_for_folder(split_data_dir+'/Train', ext)print('Data:')
+create_csv_for_folder(split_data_dir+'/Train', ext);print('Data:')
 train_pos = train_labels[:,1].sum()
 eval_pos = eval_labels[:,1].sum()
 test_pos = test_labels[:,1].sum()
@@ -187,16 +299,18 @@ print('Eval: {}/{} (pos/neg)'.format(eval_pos, len(eval_labels)-eval_pos ))
 # ##### old prepare data
 train_pos_spectral_crops, train_pos_rgb_crops = create_crops_from_fileslist(cancer_paths[:-3], window_size=window_size, shift=shift)
 test_pos_spectral_crops, test_pos_rgb_crops = create_crops_from_fileslist(cancer_paths[-3:-1])
-val_pos_spectral_crops, val_pos_rgb_crops = create_crops_from_fileslist(cancer_paths[-1:])train_neg_spectral_crops, train_neg_rgb_crops = create_crops_from_fileslist(normal_paths[:-2])
+val_pos_spectral_crops, val_pos_rgb_crops = create_crops_from_fileslist(cancer_paths[-1:])
+train_neg_spectral_crops, train_neg_rgb_crops = create_crops_from_fileslist(normal_paths[:-2])
 test_neg_spectral_crops, test_neg_rgb_crops = create_crops_from_fileslist(normal_paths[-2:-1])
-val_neg_spectral_crops, val_neg_rgb_crops = create_crops_from_fileslist(normal_paths[-1:])y_pos_train = [True]*len(train_pos_rgb_crops)
+val_neg_spectral_crops, val_neg_rgb_crops = create_crops_from_fileslist(normal_paths[-1:])
+y_pos_train = [True]*len(train_pos_rgb_crops)
 y_neg_train = [False]*len(train_neg_rgb_crops)
 
 y_pos_test = [True]*len(test_pos_rgb_crops)
 y_neg_test = [False]*len(test_neg_rgb_crops)
 
 y_pos_val = [True]*len(val_pos_rgb_crops)
-y_neg_val = [False]*len(val_neg_rgb_crops)len(test_pos_rgb_crops)# train_X_spectral = np.stack(train_pos_spectral_crops + train_neg_spectral_crops)
+y_neg_val = [False]*len(val_neg_rgb_crops)#len(test_pos_rgb_crops)# train_X_spectral = np.stack(train_pos_spectral_crops + train_neg_spectral_crops)
 train_X_rgb = np.stack(train_pos_rgb_crops + train_neg_rgb_crops)
 y_train = np.array(y_pos_train + y_neg_train)
 
@@ -219,11 +333,19 @@ else:
     x_test = test_spectral
 y_train = train_labels
 y_eval = eval_labels
-y_test = test_labelsmobilenet_model = mobilenet.MobileNet(include_top=True, weights=None, input_shape=x_train[0].shape, classes=2, dropout=0.2)mobilenet_model.summary()optimizer = Adam(lr=1e-3)
+y_test = test_labelsmobilenet_model = mobilenet.MobileNet(include_top=True, weights=None, input_shape=x_train[0].shape, classes=2, dropout=0.2)
+mobilenet_model.summary()
+optimizer = Adam(lr=1e-3)
 mobilenet_model.compile(loss="binary_crossentropy", optimizer=optimizer)
 lrReduce = ReduceLROnPlateau(monitor='val_loss', factor=0.3, patience=4, verbose=1, min_lr=1e-6)
-chkpnt = ModelCheckpoint("my_models/model_spec", save_best_only=True)print(x_train.shape, y_train.shape)
-print(x_eval.shape, y_eval.shape)mobilenet_model.fit(x=x_train, y=y_train, epochs=1000, validation_data=(x_eval, y_eval), batch_size=64, verbose=2, callbacks=[chkpnt, lrReduce], shuffle=True)y_pred = mobilenet_model.predict(test_rgb)y_pred = y_pred[:, 0]>y_pred[:, 1]y_test = y_test[:, 0]>y_test[:, 1](y_test.T[0] != y_pred).sum()
+chkpnt = ModelCheckpoint("my_models/model_spec", save_best_only=True)
+print(x_train.shape, y_train.shape)
+print(x_eval.shape, y_eval.shape)
+mobilenet_model.fit(x=x_train, y=y_train, epochs=1000, validation_data=(x_eval, y_eval), batch_size=64, verbose=2, callbacks=[chkpnt, lrReduce], shuffle=True)
+y_pred = mobilenet_model.predict(test_rgb)
+y_pred = y_pred[:, 0]>y_pred[:, 1]
+y_test = y_test[:, 0]>y_test[:, 1]
+print((y_test.T[0] != y_pred).sum())
 # ############
 
 # In[ ]:

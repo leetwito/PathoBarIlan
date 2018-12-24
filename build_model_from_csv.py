@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import pandas as pd
@@ -18,13 +18,13 @@ from keras.preprocessing.image import ImageDataGenerator
 
 # #### prepare data
 
-# In[2]:
+# In[3]:
 
 
 data_dir = 'E:/Datasets/PathoBarIlan/Case8'
 
 
-# In[3]:
+# In[ ]:
 
 
 def load_data_from_csv(csv_path):
@@ -43,7 +43,7 @@ def load_data_from_csv(csv_path):
     return np.array(imgs), to_categorical(np.array(labels))
 
 
-# In[4]:
+# In[ ]:
 
 
 x_train, y_train = load_data_from_csv(data_dir+"/train.csv")
@@ -51,7 +51,14 @@ x_test, y_test = load_data_from_csv(data_dir+"/test.csv")
 x_eval, y_eval = load_data_from_csv(data_dir+"/eval.csv")
 
 
-# In[5]:
+# In[6]:
+
+
+df = pd.read_csv(data_dir+"/train.csv")
+df
+
+
+# In[ ]:
 
 
 print(len(x_train), len(y_train))
@@ -61,19 +68,19 @@ print(len(x_eval), len(y_eval))
 
 # #### build/train model
 
-# In[6]:
+# In[ ]:
 
 
 mobilenet_model = mobilenet.MobileNet(include_top=True, weights=None, input_shape=x_train[0].shape, classes=2, dropout=0.2)
 
 
-# In[7]:
+# In[ ]:
 
 
 mobilenet_model.summary()
 
 
-# In[8]:
+# In[ ]:
 
 
 optimizer = Adam(lr=1e-3)
@@ -82,7 +89,7 @@ lrReduce = ReduceLROnPlateau(monitor='val_loss', factor=0.3, patience=4, verbose
 chkpnt = ModelCheckpoint("my_models/model_spec", save_best_only=True)
 
 
-# In[9]:
+# In[ ]:
 
 
 mobilenet_model.fit(x=x_train, y=y_train, epochs=1000, validation_data=(x_eval, y_eval), batch_size=1, verbose=2, callbacks=[chkpnt, lrReduce], shuffle=True)
@@ -90,7 +97,7 @@ mobilenet_model.fit(x=x_train, y=y_train, epochs=1000, validation_data=(x_eval, 
 
 # #### evaluate
 
-# In[10]:
+# In[ ]:
 
 
 y_pred = mobilenet_model.predict(x_test)
@@ -98,27 +105,27 @@ y_pred_bool = y_pred.argmax(axis=1)
 y_pred_bool
 
 
-# In[11]:
+# In[ ]:
 
 
 y_test_bool = y_test.argmax(axis=1)
 y_test_bool
 
 
-# In[12]:
+# In[ ]:
 
 
 (y_test_bool != y_pred_bool).mean()
 
 
-# In[18]:
+# In[ ]:
 
 
 from keras.utils.vis_utils import plot_model
 plot_model(mobilenet_model, to_file='model_plot.png', show_shapes=True, show_layer_names=True)
 
 
-# In[17]:
+# In[ ]:
 
 
 get_ipython().system(' pip install pydot')
